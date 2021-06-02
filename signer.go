@@ -69,6 +69,8 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 			return nil, errors.Wrapf(err, "can not parse asn1 public key for KeyId=%s", keyId)
 		}
 
+		fmt.Printf("aws kms public key bytes hex=%s\n", hex.EncodeToString(pub.PublicKey.Bytes))
+
 		cachedKey, err = crypto.UnmarshalPubkey(pub.PublicKey.Bytes)
 		if err != nil {
 			return nil, errors.Wrap(err, "can not construct secp256k1 public key from key bytes")
@@ -87,7 +89,7 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 		return nil, bind.ErrNoChainID
 	}
 
-	fmt.Printf("key addr=%s\n", keyAddr.Hex())
+	fmt.Printf("aws kms public key addr=%s\n", keyAddr.Hex())
 
 	signer := types.LatestSignerForChainID(chainID)
 	return &bind.TransactOpts{
@@ -119,7 +121,7 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 
 			rBytes := bytes.Trim(sigAsn1.R.Bytes, "\x00")
 			sBytes := bytes.Trim(sigAsn1.S.Bytes, "\x00")
-			vBytes := []byte{0x00} // TODO how to calculate this?
+			vBytes := []byte{0x01}
 
 			fmt.Printf("r=%s s=%s\n", hex.EncodeToString(rBytes), hex.EncodeToString(sBytes))
 
@@ -133,6 +135,17 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 
 			signature := append(rBytes, sBytes...)
 			signature = append(signature, vBytes...)
+
+			recoveredPubKeyBytes, err := crypto.Ecrecover(tx.Hash().Bytes(), signature)
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("recoveredPubKeyHex=%s\n", hex.EncodeToString(recoveredPubKeyBytes))
+			recPubKey, err := crypto.UnmarshalPubkey(recoveredPubKeyBytes)
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("recoveredAddr=%s\n", crypto.PubkeyToAddress(*recPubKey))
 
 			return tx.WithSignature(signer, signature)
 		},

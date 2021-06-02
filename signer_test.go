@@ -16,7 +16,6 @@ import (
 )
 
 const keyId = "331c7988-c19b-4e30-8037-530389c92ac0"
-
 const anotherEthAddr = "0xeB7eb6c156ac20a9c45beFDC95F1A13625B470b7"
 
 func TestSigning(t *testing.T) {
@@ -45,9 +44,9 @@ func TestSigning(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	value := big.NewInt(1) // in wei (1 eth)
-	gasLimit := uint64(21000)                // in units
-	gasPrice := big.NewInt(5)      // in wei (30 gwei)
+	value := big.NewInt(1)
+	gasLimit := uint64(21000)
+	gasPrice := big.NewInt(5)
 
 	toAddress := common.HexToAddress(anotherEthAddr)
 
