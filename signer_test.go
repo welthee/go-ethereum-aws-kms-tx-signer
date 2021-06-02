@@ -53,6 +53,9 @@ func TestSigning(t *testing.T) {
 	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
 
 	signedTx, err := transactOpts.Signer(transactOpts.From, tx)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	err = blockchain.SendTransaction(context.TODO(), signedTx)
 	if err != nil {

@@ -54,6 +54,7 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 	error) {
 	var ecdsaPublicKey *ecdsa.PublicKey
 	cachedKey := s.pubKeyCache.Get(keyId)
+	var pub asn1EcPublicKey
 
 	if cachedKey == nil {
 		getPubKeyOutput, err := s.svc.GetPublicKey(&kms.GetPublicKeyInput{
@@ -63,7 +64,6 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 			return nil, errors.Wrapf(err, "can not get public key for KeyId=%s", keyId)
 		}
 
-		var pub asn1EcPublicKey
 		_, err = asn1.Unmarshal(getPubKeyOutput.PublicKey, &pub)
 		if err != nil {
 			return nil, errors.Wrapf(err, "can not parse asn1 public key for KeyId=%s", keyId)
@@ -99,11 +99,14 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 				return nil, bind.ErrNotAuthorized
 			}
 
+			txHashBytes := tx.Hash().Bytes()
+			fmt.Printf("txhash=%s len(txhash)=%d\n", hex.EncodeToString(txHashBytes), len(txHashBytes))
+
 			signInput := &kms.SignInput{
 				KeyId:            aws.String(keyId),
 				SigningAlgorithm: aws.String(signingAlgorithm),
 				MessageType:      aws.String(messageTypeDigest),
-				Message:          tx.Hash().Bytes(),
+				Message:          txHashBytes,
 			}
 
 			signOutput, err := s.svc.Sign(signInput)
@@ -121,9 +124,6 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 
 			rBytes := bytes.Trim(sigAsn1.R.Bytes, "\x00")
 			sBytes := bytes.Trim(sigAsn1.S.Bytes, "\x00")
-			vBytes := []byte{0x01}
-
-			fmt.Printf("r=%s s=%s\n", hex.EncodeToString(rBytes), hex.EncodeToString(sBytes))
 
 			sBigInt := new(big.Int).SetBytes(sigAsn1.S.Bytes)
 
@@ -131,15 +131,36 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 				sBytes = new(big.Int).Sub(secp256k1N, sBigInt).Bytes()
 			}
 
-			fmt.Printf("len(r)=%d len(s)=%d\n", len(rBytes), len(sBytes))
+			vBytes := []byte{0}
 
-			signature := append(rBytes, sBytes...)
-			signature = append(signature, vBytes...)
+			fmt.Printf("r=%s s=%s v=%s\n", hex.EncodeToString(rBytes), hex.EncodeToString(sBytes), hex.EncodeToString(vBytes))
+			fmt.Printf("len(r)=%d len(s)=%d len(v)=%d\n", len(rBytes), len(sBytes), len(vBytes))
 
-			recoveredPubKeyBytes, err := crypto.Ecrecover(tx.Hash().Bytes(), signature)
+			rsSignature := append(rBytes, sBytes...)
+
+			signature := append(rsSignature, vBytes...)
+			fmt.Printf("sigLen=%d sig=%s\n", len(signature), hex.EncodeToString(signature))
+
+			recoveredPubKeyBytes, err := crypto.Ecrecover(txHashBytes, signature)
 			if err != nil {
 				return nil, err
 			}
+
+			if hex.EncodeToString(recoveredPubKeyBytes) != hex.EncodeToString(pub.PublicKey.Bytes) {
+				fmt.Printf("First recovered key did not match\n")
+				vBytes = []byte{1}
+				signature = append(rsSignature, vBytes...)
+				fmt.Printf("sigLen=%d sig=%s\n", len(signature), hex.EncodeToString(signature))
+				recoveredPubKeyBytes, err = crypto.Ecrecover(txHashBytes, signature)
+
+				if err != nil {
+					return nil, err
+				}
+			}
+			if hex.EncodeToString(recoveredPubKeyBytes) != hex.EncodeToString(pub.PublicKey.Bytes) {
+				return nil, errors.New("can not reconstruct public key from sig")
+			}
+
 			fmt.Printf("recoveredPubKeyHex=%s\n", hex.EncodeToString(recoveredPubKeyBytes))
 			recPubKey, err := crypto.UnmarshalPubkey(recoveredPubKeyBytes)
 			if err != nil {
