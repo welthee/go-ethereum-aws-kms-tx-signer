@@ -1,1 +1,3 @@
-# go-ethereum-aws-kms-tx-signer
+![gopher](gopher.png)
+# AWS KMS transaction signer for go-ethereum
+

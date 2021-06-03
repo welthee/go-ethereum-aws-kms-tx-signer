@@ -13,7 +13,6 @@ import (
 	ethawskmssigner "github.com/welthee/go-ethereum-aws-kms-tx-signer"
 	"log"
 	"math/big"
-	"os"
 	"testing"
 )
 
@@ -23,7 +22,6 @@ const anotherEthAddr = "0xeB7eb6c156ac20a9c45beFDC95F1A13625B470b7"
 const ethAddr = "https://ropsten.infura.io/v3/a76d1cb719694e48af1a539ec96f040b"
 
 func TestSigning(t *testing.T) {
-	os.Setenv("AWS_PROFILE", "wlth-stg")
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-central-1"),
 	})
@@ -32,8 +30,6 @@ func TestSigning(t *testing.T) {
 	}
 
 	kmsSvc := kms.New(sess)
-
-	signer := ethawskmssigner.NewAwsKmsEthereumTxSigner(kmsSvc)
 
 	//
 	//alloc := make(core.GenesisAlloc)
@@ -49,7 +45,7 @@ func TestSigning(t *testing.T) {
 	clChainId, _ := client.ChainID(context.TODO())
 	fmt.Printf("client chainid=%s\n", clChainId.String())
 
-	transactOpts, err := signer.NewAwsKmsTransactorWithChainID(keyId, clChainId)
+	transactOpts, err := ethawskmssigner.NewAwsKmsTransactorWithChainID(kmsSvc, keyId, clChainId)
 	if err != nil {
 		log.Fatalf("can not sign: %s", err)
 	}
