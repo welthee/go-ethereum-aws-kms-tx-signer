@@ -3,7 +3,6 @@ package ethawskmssigner
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"encoding/asn1"
 	"encoding/hex"
 	"fmt"
@@ -20,7 +19,7 @@ import (
 const messageTypeDigest = "DIGEST"
 const signingAlgorithm = "ECDSA_SHA_256"
 
-var secp256k1N = elliptic.P256().Params().N
+var secp256k1N = crypto.S256().Params().N
 var halfSecp256k1N = new(big.Int).Div(secp256k1N, big.NewInt(2))
 
 type AwsKmsEthereumTxSigner struct {
@@ -41,14 +40,16 @@ type asn1EcPublicKey struct {
 }
 
 type asn1EcPublicKeyInfo struct {
-	Oid1 asn1.ObjectIdentifier
-	Oid2 asn1.ObjectIdentifier
+	Algorithm  asn1.ObjectIdentifier
+	Parameters asn1.ObjectIdentifier
 }
 
 type asn1EcSig struct {
 	R asn1.RawValue
 	S asn1.RawValue
 }
+
+//https://luhenning.medium.com/the-dark-side-of-the-elliptic-curve-signing-ethereum-transactions-with-aws-kms-in-javascript-83610d9a6f81
 
 func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, chainID *big.Int) (*bind.TransactOpts,
 	error) {
@@ -125,9 +126,10 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 			rBytes := bytes.Trim(sigAsn1.R.Bytes, "\x00")
 			sBytes := bytes.Trim(sigAsn1.S.Bytes, "\x00")
 
-			sBigInt := new(big.Int).SetBytes(sigAsn1.S.Bytes)
+			sBigInt := new(big.Int).SetBytes(sBytes)
 
 			if sBigInt.Cmp(halfSecp256k1N) > 0 {
+				fmt.Printf("wrong side of the curve. adjusting...\n")
 				sBytes = new(big.Int).Sub(secp256k1N, sBigInt).Bytes()
 			}
 
@@ -156,9 +158,9 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 				if err != nil {
 					return nil, err
 				}
-			}
-			if hex.EncodeToString(recoveredPubKeyBytes) != hex.EncodeToString(pub.PublicKey.Bytes) {
-				return nil, errors.New("can not reconstruct public key from sig")
+				if hex.EncodeToString(recoveredPubKeyBytes) != hex.EncodeToString(pub.PublicKey.Bytes) {
+					return nil, errors.New("can not reconstruct public key from sig")
+				}
 			}
 
 			fmt.Printf("recoveredPubKeyHex=%s\n", hex.EncodeToString(recoveredPubKeyBytes))
