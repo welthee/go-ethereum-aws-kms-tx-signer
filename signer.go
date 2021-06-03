@@ -39,7 +39,6 @@ type asn1EcSig struct {
 }
 
 func NewAwsKmsTransactorWithChainID(svc *kms.KMS, keyId string, chainID *big.Int) (*bind.TransactOpts, error) {
-
 	pubkey := keyCache.Get(keyId)
 
 	if pubkey == nil {
@@ -115,7 +114,6 @@ func getPublicKeyDerBytesFromKMS(svc *kms.KMS, keyId string) ([]byte, error) {
 }
 
 func getSignatureFromKms(svc *kms.KMS, keyId string, txHashBytes []byte) ([]byte, []byte, error) {
-
 	signInput := &kms.SignInput{
 		KeyId:            aws.String(keyId),
 		SigningAlgorithm: aws.String(awsKmsSignOperationSigningAlgorithm),

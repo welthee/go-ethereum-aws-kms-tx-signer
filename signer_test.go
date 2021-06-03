@@ -2,7 +2,6 @@ package ethawskmssigner_test
 
 import (
 	"context"
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -31,32 +30,18 @@ func TestSigning(t *testing.T) {
 
 	kmsSvc := kms.New(sess)
 
-	//
-	//alloc := make(core.GenesisAlloc)
-	//alloc[transactOpts.From] = core.GenesisAccount{Balance: big.NewInt(1000000000000000000)}
-	//blockchain := backends.NewSimulatedBackend(alloc, 100000000)
-	//blockchain.Commit()
-
 	client, err := ethclient.Dial(ethAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	clChainId, _ := client.ChainID(context.TODO())
-	fmt.Printf("client chainid=%s\n", clChainId.String())
 
 	transactOpts, err := ethawskmssigner.NewAwsKmsTransactorWithChainID(kmsSvc, keyId, clChainId)
 	if err != nil {
 		log.Fatalf("can not sign: %s", err)
 	}
 
-	balanceAt, err2 := client.BalanceAt(context.Background(), transactOpts.From, nil)
-	if err2 != nil {
-		return
-	}
-	fmt.Println("balance" + balanceAt.String())
-
-	fmt.Printf("transactops from=%s\n", transactOpts.From.Hex())
 	nonce, err := client.PendingNonceAt(context.Background(), transactOpts.From)
 	if err != nil {
 		log.Fatal(err)
@@ -74,15 +59,11 @@ func TestSigning(t *testing.T) {
 	gasPrice := suggestedGasPrice
 
 	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
-	fmt.Printf("chainid=%s\n", tx.ChainId().String())
 
 	signedTx, err := transactOpts.Signer(transactOpts.From, tx)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Printf("signedTx=%s\n", signedTx.Hash().Hex())
-	fmt.Printf("nonce=%d\n", signedTx.Nonce())
 
 	err = client.SendTransaction(context.TODO(), signedTx)
 	if err != nil {
