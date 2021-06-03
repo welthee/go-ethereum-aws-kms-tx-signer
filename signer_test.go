@@ -13,6 +13,7 @@ import (
 	ethawskmssigner "github.com/welthee/go-ethereum-aws-kms-tx-signer"
 	"log"
 	"math/big"
+	"os"
 	"testing"
 )
 
@@ -22,6 +23,7 @@ const anotherEthAddr = "0xeB7eb6c156ac20a9c45beFDC95F1A13625B470b7"
 const ethAddr = "https://ropsten.infura.io/v3/a76d1cb719694e48af1a539ec96f040b"
 
 func TestSigning(t *testing.T) {
+	os.Setenv("AWS_PROFILE", "wlth-stg")
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-central-1"),
 	})
@@ -82,6 +84,9 @@ func TestSigning(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fmt.Printf("signedTx=%s\n", signedTx.Hash().Hex())
+	fmt.Printf("nonce=%d\n", signedTx.Nonce())
 
 	err = client.SendTransaction(context.TODO(), signedTx)
 	if err != nil {

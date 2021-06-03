@@ -100,7 +100,7 @@ func (s *AwsKmsEthereumTxSigner) NewAwsKmsTransactorWithChainID(keyId string, ch
 				return nil, bind.ErrNotAuthorized
 			}
 
-			txHashBytes := tx.Hash().Bytes()
+			txHashBytes := signer.Hash(tx).Bytes()
 			fmt.Printf("txhash=%s len(txhash)=%d\n", hex.EncodeToString(txHashBytes), len(txHashBytes))
 
 			signInput := &kms.SignInput{
