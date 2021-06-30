@@ -4,14 +4,9 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'api/**'
-      - 'cmd/**'
-      - 'deployments/**'
-      - 'internal/**'
       - 'pkg/**'
-      - 'scripts/**'
       - 'go.*'
-      - 'Dockerfile'
+      - '*.go'
 
 
 jobs:
