@@ -1,6 +1,7 @@
 package ethawskmssigner
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -23,4 +24,13 @@ func GetPubKey(svc *kms.KMS, keyId string) (*ecdsa.PublicKey, error) {
 		keyCache.Add(keyId, pubkey)
 	}
 	return pubkey, nil
+}
+
+func adjustSignatureLength(buffer []byte) []byte {
+	buffer = bytes.TrimLeft(buffer, "\x00")
+	for len(buffer) < 32 {
+		zeroBuf := []byte{0}
+		buffer = append(zeroBuf, buffer...)
+	}
+	return buffer
 }

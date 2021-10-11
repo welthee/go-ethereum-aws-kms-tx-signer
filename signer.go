@@ -1,7 +1,6 @@
 package ethawskmssigner
 
 import (
-	"bytes"
 	"encoding/asn1"
 	"encoding/hex"
 	"github.com/aws/aws-sdk-go/aws"
@@ -121,14 +120,11 @@ func getSignatureFromKms(svc *kms.KMS, keyId string, txHashBytes []byte) ([]byte
 		return nil, nil, err
 	}
 
-	rBytes := bytes.Trim(sigAsn1.R.Bytes, "\x00")
-	sBytes := bytes.Trim(sigAsn1.S.Bytes, "\x00")
-
-	return rBytes, sBytes, nil
+	return sigAsn1.R.Bytes, sigAsn1.S.Bytes, nil
 }
 
 func getEthereumSignature(expectedPublicKeyBytes []byte, txHash []byte, r []byte, s []byte) ([]byte, error) {
-	rsSignature := append(r, s...)
+	rsSignature := append(adjustSignatureLength(r), adjustSignatureLength(s)...)
 	signature := append(rsSignature, []byte{0}...)
 
 	recoveredPublicKeyBytes, err := crypto.Ecrecover(txHash, signature)
