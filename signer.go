@@ -39,20 +39,9 @@ type asn1EcSig struct {
 }
 
 func NewAwsKmsTransactorWithChainID(svc *kms.KMS, keyId string, chainID *big.Int) (*bind.TransactOpts, error) {
-	pubkey := keyCache.Get(keyId)
-
-	if pubkey == nil {
-		pubKeyBytes, err := getPublicKeyDerBytesFromKMS(svc, keyId)
-		if err != nil {
-			return nil, err
-		}
-
-		pubkey, err = crypto.UnmarshalPubkey(pubKeyBytes)
-		if err != nil {
-			return nil, errors.Wrap(err, "can not construct secp256k1 public key from key bytes")
-		}
-
-		keyCache.Add(keyId, pubkey)
+	pubkey, err := GetPubKey(svc, keyId)
+	if err != nil {
+		return nil, err
 	}
 
 	pubKeyBytes := secp256k1.S256().Marshal(pubkey.X, pubkey.Y)
