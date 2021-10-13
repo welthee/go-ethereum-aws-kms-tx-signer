@@ -2,6 +2,7 @@ package ethawskmssigner
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"encoding/asn1"
 	"encoding/hex"
 	"github.com/aws/aws-sdk-go/aws"
@@ -39,20 +40,9 @@ type asn1EcSig struct {
 }
 
 func NewAwsKmsTransactorWithChainID(svc *kms.KMS, keyId string, chainID *big.Int) (*bind.TransactOpts, error) {
-	pubkey := keyCache.Get(keyId)
-
-	if pubkey == nil {
-		pubKeyBytes, err := getPublicKeyDerBytesFromKMS(svc, keyId)
-		if err != nil {
-			return nil, err
-		}
-
-		pubkey, err = crypto.UnmarshalPubkey(pubKeyBytes)
-		if err != nil {
-			return nil, errors.Wrap(err, "can not construct secp256k1 public key from key bytes")
-		}
-
-		keyCache.Add(keyId, pubkey)
+	pubkey, err := GetPubKey(svc, keyId)
+	if err != nil {
+		return nil, err
 	}
 
 	pubKeyBytes := secp256k1.S256().Marshal(pubkey.X, pubkey.Y)
@@ -132,14 +122,11 @@ func getSignatureFromKms(svc *kms.KMS, keyId string, txHashBytes []byte) ([]byte
 		return nil, nil, err
 	}
 
-	rBytes := bytes.Trim(sigAsn1.R.Bytes, "\x00")
-	sBytes := bytes.Trim(sigAsn1.S.Bytes, "\x00")
-
-	return rBytes, sBytes, nil
+	return sigAsn1.R.Bytes, sigAsn1.S.Bytes, nil
 }
 
 func getEthereumSignature(expectedPublicKeyBytes []byte, txHash []byte, r []byte, s []byte) ([]byte, error) {
-	rsSignature := append(r, s...)
+	rsSignature := append(adjustSignatureLength(r), adjustSignatureLength(s)...)
 	signature := append(rsSignature, []byte{0}...)
 
 	recoveredPublicKeyBytes, err := crypto.Ecrecover(txHash, signature)
@@ -160,4 +147,31 @@ func getEthereumSignature(expectedPublicKeyBytes []byte, txHash []byte, r []byte
 	}
 
 	return signature, nil
+}
+
+func GetPubKey(svc *kms.KMS, keyId string) (*ecdsa.PublicKey, error) {
+	pubkey := keyCache.Get(keyId)
+
+	if pubkey == nil {
+		pubKeyBytes, err := getPublicKeyDerBytesFromKMS(svc, keyId)
+		if err != nil {
+			return nil, err
+		}
+
+		pubkey, err = crypto.UnmarshalPubkey(pubKeyBytes)
+		if err != nil {
+			return nil, errors.Wrap(err, "can not construct secp256k1 public key from key bytes")
+		}
+		keyCache.Add(keyId, pubkey)
+	}
+	return pubkey, nil
+}
+
+func adjustSignatureLength(buffer []byte) []byte {
+	buffer = bytes.TrimLeft(buffer, "\x00")
+	for len(buffer) < 32 {
+		zeroBuf := []byte{0}
+		buffer = append(zeroBuf, buffer...)
+	}
+	return buffer
 }
