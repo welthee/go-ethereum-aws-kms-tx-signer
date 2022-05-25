@@ -2,18 +2,20 @@ package ethawskmssigner
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"encoding/asn1"
 	"encoding/hex"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kms"
+	"math/big"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/pkg/errors"
-	"math/big"
 )
 
 const awsKmsSignOperationMessageType = "DIGEST"
@@ -39,8 +41,16 @@ type asn1EcSig struct {
 	S asn1.RawValue
 }
 
-func NewAwsKmsTransactorWithChainID(svc *kms.KMS, keyId string, chainID *big.Int) (*bind.TransactOpts, error) {
-	pubkey, err := GetPubKey(svc, keyId)
+func NewAwsKmsTransactorWithChainID(
+	svc *kms.Client, keyId string, chainID *big.Int,
+) (*bind.TransactOpts, error) {
+	return NewAwsKmsTransactorWithChainIDCtx(context.Background(), svc, keyId, chainID)
+}
+
+func NewAwsKmsTransactorWithChainIDCtx(
+	ctx context.Context, svc *kms.Client, keyId string, chainID *big.Int,
+) (*bind.TransactOpts, error) {
+	pubkey, err := GetPubKeyCtx(ctx, svc, keyId)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +71,7 @@ func NewAwsKmsTransactorWithChainID(svc *kms.KMS, keyId string, chainID *big.Int
 
 		txHashBytes := signer.Hash(tx).Bytes()
 
-		rBytes, sBytes, err := getSignatureFromKms(svc, keyId, txHashBytes)
+		rBytes, sBytes, err := getSignatureFromKms(ctx, svc, keyId, txHashBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -86,8 +96,8 @@ func NewAwsKmsTransactorWithChainID(svc *kms.KMS, keyId string, chainID *big.Int
 	}, nil
 }
 
-func getPublicKeyDerBytesFromKMS(svc *kms.KMS, keyId string) ([]byte, error) {
-	getPubKeyOutput, err := svc.GetPublicKey(&kms.GetPublicKeyInput{
+func getPublicKeyDerBytesFromKMS(ctx context.Context, svc *kms.Client, keyId string) ([]byte, error) {
+	getPubKeyOutput, err := svc.GetPublicKey(ctx, &kms.GetPublicKeyInput{
 		KeyId: aws.String(keyId),
 	})
 	if err != nil {
@@ -103,15 +113,17 @@ func getPublicKeyDerBytesFromKMS(svc *kms.KMS, keyId string) ([]byte, error) {
 	return asn1pubk.PublicKey.Bytes, nil
 }
 
-func getSignatureFromKms(svc *kms.KMS, keyId string, txHashBytes []byte) ([]byte, []byte, error) {
+func getSignatureFromKms(
+	ctx context.Context, svc *kms.Client, keyId string, txHashBytes []byte,
+) ([]byte, []byte, error) {
 	signInput := &kms.SignInput{
 		KeyId:            aws.String(keyId),
-		SigningAlgorithm: aws.String(awsKmsSignOperationSigningAlgorithm),
-		MessageType:      aws.String(awsKmsSignOperationMessageType),
+		SigningAlgorithm: awsKmsSignOperationSigningAlgorithm,
+		MessageType:      awsKmsSignOperationMessageType,
 		Message:          txHashBytes,
 	}
 
-	signOutput, err := svc.Sign(signInput)
+	signOutput, err := svc.Sign(ctx, signInput)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -149,11 +161,15 @@ func getEthereumSignature(expectedPublicKeyBytes []byte, txHash []byte, r []byte
 	return signature, nil
 }
 
-func GetPubKey(svc *kms.KMS, keyId string) (*ecdsa.PublicKey, error) {
+func GetPubKey(svc *kms.Client, keyId string) (*ecdsa.PublicKey, error) {
+	return GetPubKeyCtx(context.Background(), svc, keyId)
+}
+
+func GetPubKeyCtx(ctx context.Context, svc *kms.Client, keyId string) (*ecdsa.PublicKey, error) {
 	pubkey := keyCache.Get(keyId)
 
 	if pubkey == nil {
-		pubKeyBytes, err := getPublicKeyDerBytesFromKMS(svc, keyId)
+		pubKeyBytes, err := getPublicKeyDerBytesFromKMS(ctx, svc, keyId)
 		if err != nil {
 			return nil, err
 		}
