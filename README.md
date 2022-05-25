@@ -10,14 +10,14 @@ offered by the official go-ethereum library.
 ## Import
 
 ```go
-import "github.com/welthee/go-ethereum-aws-kms-tx-signer"
+import "github.com/welthee/go-ethereum-aws-kms-tx-signer/v2"
 ```
 
 ## Usage
-In order to sign Ethereum transactions with an AWS KMS key you need to create a KMS key in AWS, and grant your 
+In order to sign Ethereum transactions with an AWS KMS key you need to create a KMS key in AWS, and grant your
 application's principal access to use it.
 
-Then, modify your Ethereum transactor code to use the `bind.TransactOpts` that this library returns. 
+Then, modify your Ethereum transactor code to use the `bind.TransactOpts` that this library returns.
 
 ### Create an AWS KMS key
 Create an AWS KMS Assymetric key with key usage of `SIGN_VERIFY` and spec `ECC_SECG_P256K1`. Make sure that you add an
@@ -67,7 +67,7 @@ Example:
 ```go
 transactOpts, _ := ethawskmssigner.NewAwsKmsTransactorWithChainID(kmsSvc, keyId, clChainId)
 tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
-signedTx, _ := transactOpts.Signer(transactOpts.From, tx)	
+signedTx, _ := transactOpts.Signer(transactOpts.From, tx)
 err = client.SendTransaction(context.TODO(), signedTx)
 ```
 

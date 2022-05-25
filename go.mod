@@ -1,4 +1,4 @@
-module github.com/welthee/go-ethereum-aws-kms-tx-signer
+module github.com/welthee/go-ethereum-aws-kms-tx-signer/v2
 
 go 1.16
 

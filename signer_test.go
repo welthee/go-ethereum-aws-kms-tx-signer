@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	ethawskmssigner "github.com/welthee/go-ethereum-aws-kms-tx-signer"
+	ethawskmssigner "github.com/welthee/go-ethereum-aws-kms-tx-signer/v2"
 )
 
 const keyId = "331c7988-c19b-4e30-8037-530389c92ac0"
