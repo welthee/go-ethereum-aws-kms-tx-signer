@@ -4,9 +4,9 @@ go 1.16
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.10.0 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.16.6
-	github.com/aws/aws-sdk-go-v2/config v1.15.12
-	github.com/aws/aws-sdk-go-v2/service/kms v1.17.4
+	github.com/aws/aws-sdk-go-v2 v1.16.7
+	github.com/aws/aws-sdk-go-v2/config v1.15.13
+	github.com/aws/aws-sdk-go-v2/service/kms v1.17.5
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/ethereum/go-ethereum v1.10.20
 	github.com/gballet/go-libpcsclite v0.0.0-20191108122812-4678299bea08 // indirect
